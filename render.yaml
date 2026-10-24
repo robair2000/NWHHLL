@@ -1,0 +1,91 @@
+# Render Blueprint: the NW + HH/LL 1-minute bot as a Background Worker with a persistent disk.
+# Render dashboard -> New -> Blueprint -> pick this repo -> Apply. Fill in the three KuCoin secrets when asked.
+# Changing a value here and pushing updates the worker.
+services:
+  - type: worker
+    name: nw-hh-bot
+    runtime: python
+    plan: starter                 # needed for the disk; this bot is light (no AI model)
+    region: frankfurt
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: python nw_bot.py
+    autoDeploy: true
+    disk:
+      name: nw-hh-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      # --- secrets: use a SEPARATE KuCoin sub-account; never share it with the KB bot ---
+      - key: KUCOIN_API_KEY
+        sync: false
+      - key: KUCOIN_API_SECRET
+        sync: false
+      - key: KUCOIN_PASSPHRASE
+        sync: false
+      # --- mode: start in paper, switch to live + CONFIRM_LIVE when you are happy ---
+      - key: MODE
+        value: paper
+      - key: CONFIRM_LIVE
+        value: "no"
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: STATE_PATH
+        value: /var/data/nw_state.json
+      - key: INTERVAL
+        value: 1min
+      - key: PAIRS
+        value: ETH-USDT,SOL-USDT,XRP-USDT
+      - key: ENABLE_LONGS
+        value: "true"
+      - key: ENABLE_SHORTS
+        value: "true"
+      # --- Nadaraya-Watson (same defaults as the TradingView script) ---
+      - key: NW_H
+        value: "8"
+      - key: NW_ALPHA
+        value: "8"
+      - key: NW_X0
+        value: "25"
+      - key: NW_ATR_LEN
+        value: "60"
+      - key: NEAR_F
+        value: "1.5"
+      - key: FAR_F
+        value: "8"
+      - key: PIVOT_LEFT
+        value: "5"
+      - key: PIVOT_RIGHT
+        value: "5"
+      # --- stop / take-profit ---
+      - key: CONFIRM
+        value: color              # color = next candle closes green/red beyond HH/LL | break = also beyond the signal candle | off
+      - key: SL_MODE
+        value: pct                # pct | pullback | line | atr
+      - key: SL_PCT
+        value: "0.00382"          # stop 0.382% from entry
+      - key: TP_PCT
+        value: "0.00466"          # take-profit 0.466% from entry (0 = use RR x stop)
+      - key: SL_BUF
+        value: "0.1"
+      - key: SL_ATR_MULT
+        value: "1.5"
+      - key: RR
+        value: "1.5"
+      - key: MIN_STOP_PCT
+        value: "0"
+      # --- risk ---
+      - key: RISK_FRAC
+        value: "0.01"
+      - key: MAX_LEVERAGE
+        value: "3"
+      - key: MAX_MARGIN_FRAC
+        value: "0.25"
+      - key: MAX_TOTAL_LEVERAGE
+        value: "3"
+      - key: MAX_POSITIONS
+        value: "3"
+      - key: DAILY_LOSS_LIMIT
+        value: "0.03"
+      - key: FUT_FEE
+        value: "0.0006"
